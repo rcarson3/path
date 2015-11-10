@@ -105,7 +105,7 @@ static inline void deinfinitize(int n, int* l)
  * same (as indicated by the return value of the `square` routine).
  */
 
-void shortest_paths(int n, int* restrict l)
+void shortest_paths(int n, int* restrict l, int argc, char** argv)
 {
     int rank, size, start, interval;
 
@@ -122,13 +122,16 @@ void shortest_paths(int n, int* restrict l)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    int interval = n / size;
-    int start = rank * interval;
+    if (rank==0)
+        printf("== MPI with %d threads\n", size);
+
+    interval = n / size;
+    start = rank * interval;
 
     printf("rank=%d, start=%d, interval=%d, n=%d", rank, start, interval, n); 
 
     for (int done = 0; !done; ) {
-        done = square(n, l, lnew);
+        done = square(n, start, interval, l, lnew);
         MPI_Allreduce(&done,&done,1,MPI_INT,MPI_LAND,MPI_COMM_WORLD); 
         memcpy(l, lnew, n*n * sizeof(int));
     }
@@ -248,7 +251,7 @@ int main(int argc, char** argv)
 
     // Time the shortest paths code
     double t0 = MPI_WTIME();
-    shortest_paths(n, l);
+    shortest_paths(n, l, argc, argv);
     double t1 = MPI_WTIME();
 
     printf("== MPI with %d threads\n", size);
