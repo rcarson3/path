@@ -250,11 +250,10 @@ int main(int argc, char** argv)
         write_matrix(ifname,  n, l);
 
     // Time the shortest paths code
-    double t0 = MPI_WTIME();
+    double t0 = MPI_WTime();
     shortest_paths(n, l, argc, argv);
-    double t1 = MPI_WTIME();
+    double t1 = MPI_WTime();
 
-    printf("== MPI with %d threads\n", size);
     printf("n:     %d\n", n);
     printf("p:     %g\n", p);
     printf("Time:  %g\n", t1-t0);
