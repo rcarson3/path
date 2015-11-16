@@ -179,7 +179,6 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
     
     // divide up the work amonst all processes
     if (rank==0) {
-        printf("== MPI with %d processes\n", size);
         displacements[0] = 0;
         for (int i = 0; i < size-1; i++) {
             if (i < extraRows)
@@ -197,8 +196,6 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
     int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
     memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
         
-    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[rank], intervals[rank], n); 
-
     for (int done = 0; !done; ) {
         int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
         MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
@@ -273,6 +270,7 @@ int main(int argc, char** argv)
     double t1 = MPI_Wtime();
 
     if (rank == 0) {
+        printf("== MPI with %d processes\n", size);
         printf("n:     %d\n", n);
         printf("p:     %g\n", p);
         printf("Time:  %g\n", t1-t0);
