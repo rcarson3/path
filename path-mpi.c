@@ -47,7 +47,7 @@ int square(int n,               // Number of nodes
 {
     int done = 1;
     for (int k = 0; k < n; ++k) {
-        for (int j = 0; j < numrows; ++j) {
+        for (int j = 0; j < numRows; ++j) {
             int lkj = l[j*n + start + k];
             for (int i = 0; i < n; ++i) {
                 int lik = l[k*n + i];
