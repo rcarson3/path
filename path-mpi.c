@@ -92,61 +92,6 @@ static inline void deinfinitize(int n, int* l)
 }
 
 /**
- *
- * Of course, any loop-free path in a graph with $n$ nodes can
- * at most pass through every node in the graph.  Therefore,
- * once $2^s \geq n$, the quantity $l_{ij}^s$ is actually
- * the length of the shortest path of any number of hops.  This means
- * we can compute the shortest path lengths for all pairs of nodes
- * in the graph by $\lceil \lg n \rceil$ repeated squaring operations.
- *
- * The `shortest_path` routine attempts to save a little bit of work
- * by only repeatedly squaring until two successive matrices are the
- * same (as indicated by the return value of the `square` routine).
- */
-
-void shortest_paths(int n, int* restrict l, int size, int rank)
-{
-    int* restrict intervals = (int*) calloc(size, sizeof(int));
-    int* restrict displacements = (int*) calloc(size, sizeof(int));
-    int numRows = n/size;
-    int extraRows = n%size;
-    
-    // divide up the work amonst all processes
-    if (rank==0) {
-        printf("== MPI with %d processes\n", size);
-        displacements[0] = 0;
-        for (int i = 0; i < size-1; i++) {
-            if (rank < extraRows)
-                intervals[i] = (numRows+1)*n;
-            else
-                intervals[i] = numRows*n;
-            displacements[i+1] = displacements[i] + intervals[i];
-        }
-        intervals[size-1] = numRows*n;
-    }
-
-    MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(displacements, size, MPI_INT, 0, MPI_COMM_WORLD);
-
-    int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
-    memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
-        
-    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[rank], intervals[rank], n); 
-
-    for (int done = 0; !done; ) {
-        int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
-        MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
-        print("do we all see this: %d", fletcher16(l, n*n));
-        MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
-    }
-
-    free(lnew);
-    if (rank == 0)
-        deinfinitize(n, l);
-}
-
-/**
  * # The random graph model
  *
  * Of course, we need to run the shortest path algorithm on something!
@@ -211,6 +156,61 @@ void write_matrix(const char* fname, int n, int* a)
         fprintf(fp, "\n");
     }
     fclose(fp);
+}
+
+/**
+ *
+ * Of course, any loop-free path in a graph with $n$ nodes can
+ * at most pass through every node in the graph.  Therefore,
+ * once $2^s \geq n$, the quantity $l_{ij}^s$ is actually
+ * the length of the shortest path of any number of hops.  This means
+ * we can compute the shortest path lengths for all pairs of nodes
+ * in the graph by $\lceil \lg n \rceil$ repeated squaring operations.
+ *
+ * The `shortest_path` routine attempts to save a little bit of work
+ * by only repeatedly squaring until two successive matrices are the
+ * same (as indicated by the return value of the `square` routine).
+ */
+
+void shortest_paths(int n, int* restrict l, int size, int rank)
+{
+    int* restrict intervals = (int*) calloc(size, sizeof(int));
+    int* restrict displacements = (int*) calloc(size, sizeof(int));
+    int numRows = n/size;
+    int extraRows = n%size;
+    
+    // divide up the work amonst all processes
+    if (rank==0) {
+        printf("== MPI with %d processes\n", size);
+        displacements[0] = 0;
+        for (int i = 0; i < size-1; i++) {
+            if (rank < extraRows)
+                intervals[i] = (numRows+1)*n;
+            else
+                intervals[i] = numRows*n;
+            displacements[i+1] = displacements[i] + intervals[i];
+        }
+        intervals[size-1] = numRows*n;
+    }
+
+    MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(displacements, size, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
+    memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
+        
+    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[rank], intervals[rank], n); 
+
+    for (int done = 0; !done; ) {
+        int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
+        MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
+        print("do we all see this: %d", fletcher16(l, n*n));
+        MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
+    }
+
+    free(lnew);
+    if (rank == 0)
+        deinfinitize(n, l);
 }
 
 /**
