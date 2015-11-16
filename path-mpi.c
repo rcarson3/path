@@ -123,7 +123,7 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
                 intervals[i] = numRows*n;
             displacements[i+1] = displacements[i] + intervals[i];
         }
-        intervals[size-1] = numRows;
+        intervals[size-1] = numRows*n;
     }
 
     MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
