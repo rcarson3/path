@@ -120,12 +120,12 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
         printf("uhoh, sizes don't divide evenly\n");
 
     if (rank == 0)
-        printf("rank=%d, start=%d, interval=%d, n=%d", rank, start, interval, n); 
+        printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, start, interval, n); 
 
     for (int done = 0; !done; ) {
-        done = square(n, start, numRows, l, lnew);
+        int doneLocal = square(n, start, numRows, l, lnew);
         MPI_Allgather(lnew, interval, MPI_INT, l, interval, MPI_INT, MPI_COMM_WORLD);
-        MPI_Allreduce(&done, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
+        MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
 
     free(lnew);
@@ -256,9 +256,9 @@ int main(int argc, char** argv)
     }
 
     // Time the shortest paths code
-    double t0 = MPI_WTime();
+    double t0 = MPI_Wtime();
     shortest_paths(n, l, size, rank);
-    double t1 = MPI_WTime();
+    double t1 = MPI_Wtime();
 
     if (rank == 0) {
         printf("n:     %d\n", n);
