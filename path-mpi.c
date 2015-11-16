@@ -50,6 +50,10 @@ int square(int n,               // Number of nodes
         for (int i = 0; i < n; ++i) {
             int lij = lnew[j*n+i];
             for (int k = 0; k < n; ++k) {
+                int lik;
+                if (k < start || k >= start+interval) {
+
+                }
                 int lik = l[k*n+i];
                 int lkj = l[j*n+k];
                 if (lik + lkj < lij) {
@@ -114,10 +118,6 @@ void shortest_paths(int n, int* restrict l, int argc, char** argv)
     for (int i = 0; i < n*n; i += n+1)
         l[i] = 0;
 
-    // Repeated squaring until nothing changes
-    int* restrict lnew = (int*) calloc(n*n, sizeof(int));
-    memcpy(lnew, l, n*n * sizeof(int));
-
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -125,6 +125,10 @@ void shortest_paths(int n, int* restrict l, int argc, char** argv)
     if (rank==0)
         printf("== MPI with %d threads\n", size);
 
+    int* restrict lnew = (int*) calloc(n*n, sizeof(int));
+    memcpy(lnew, l, n*n * sizeof(int));
+    if (n % size > 0) 
+        printf("uhoh, sizes don't divide evenly\n");
     interval = n / size;
     start = rank * interval;
 
@@ -132,13 +136,13 @@ void shortest_paths(int n, int* restrict l, int argc, char** argv)
 
     for (int done = 0; !done; ) {
         done = square(n, start, interval, l, lnew);
-        MPI_Allreduce(&done,&done,1,MPI_INT,MPI_LAND,MPI_COMM_WORLD); 
-        memcpy(l, lnew, n*n * sizeof(int));
+        MPI_Allgather(lnew[n*start], interval*n, MPI_INT, l, interval*n, MPI_INT, MPI_COMM_WORLD)
+        MPI_Allreduce(&done, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
 
+    free(lnew);
     MPI_Finalize();
 
-    free(lnew);
     deinfinitize(n, l);
 }
 
