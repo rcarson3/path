@@ -41,21 +41,17 @@
 
 int square(int n,               // Number of nodes
            int start,
-           int interval,
+           int numRows,
            int* restrict l,     // Partial distance at step s
            int* restrict lnew)  // Partial distance at step s+1
 {
     int done = 1;
-    for (int j = start; j < start+interval; ++j) {
+    for (int j = 0; j < numRows; ++j) {
         for (int i = 0; i < n; ++i) {
             int lij = lnew[j*n+i];
             for (int k = 0; k < n; ++k) {
-                int lik;
-                if (k < start || k >= start+interval) {
-
-                }
-                int lik = l[k*n+i];
-                int lkj = l[j*n+k];
+                int lik = l[k*n + i];
+                int lkj = l[j*n + start + k];
                 if (lik + lkj < lij) {
                     lij = lik+lkj;
                     done = 0;
@@ -109,41 +105,32 @@ static inline void deinfinitize(int n, int* l)
  * same (as indicated by the return value of the `square` routine).
  */
 
-void shortest_paths(int n, int* restrict l, int argc, char** argv)
+void shortest_paths(int n, int* restrict l, int size, int rank)
 {
-    int rank, size, start, interval;
-
-    // Generate l_{ij}^0 from adjacency matrix representation
-    infinitize(n, l);
-    for (int i = 0; i < n*n; i += n+1)
-        l[i] = 0;
-
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int numRows = n/size;
+    int interval = numRows * n;
+    int start = rank * interval;
 
     if (rank==0)
-        printf("== MPI with %d threads\n", size);
+        printf("== MPI with %d processes\n", size);
 
-    int* restrict lnew = (int*) calloc(n*n, sizeof(int));
-    memcpy(lnew, l, n*n * sizeof(int));
+    int* restrict lnew = (int*) calloc(interval, sizeof(int));
+    memcpy(lnew, l + start, interval * sizeof(int));
     if (n % size > 0) 
         printf("uhoh, sizes don't divide evenly\n");
-    interval = n / size;
-    start = rank * interval;
 
-    printf("rank=%d, start=%d, interval=%d, n=%d", rank, start, interval, n); 
+    if (rank == 0)
+        printf("rank=%d, start=%d, interval=%d, n=%d", rank, start, interval, n); 
 
     for (int done = 0; !done; ) {
-        done = square(n, start, interval, l, lnew);
-        MPI_Allgather(lnew[n*start], interval*n, MPI_INT, l, interval*n, MPI_INT, MPI_COMM_WORLD)
+        done = square(n, start, numRows, l, lnew);
+        MPI_Allgather(lnew, interval, MPI_INT, l, interval, MPI_INT, MPI_COMM_WORLD);
         MPI_Allreduce(&done, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
 
     free(lnew);
-    MPI_Finalize();
-
-    deinfinitize(n, l);
+    if (rank == 0)
+        deinfinitize(n, l);
 }
 
 /**
@@ -227,6 +214,13 @@ const char* usage =
 
 int main(int argc, char** argv)
 {
+    MPI_Init(&argc, &argv);
+    int rank, size;
+    int* l;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     int n    = 200;            // Number of nodes
     double p = 0.05;           // Edge probability
     const char* ifname = NULL; // Adjacency matrix file name
@@ -248,26 +242,37 @@ int main(int argc, char** argv)
         }
     }
 
-    // Graph generation + output
-    int* l = gen_graph(n, p);
-    if (ifname)
-        write_matrix(ifname,  n, l);
+    if (rank == 0) {
+        // Graph generation + output
+        l = gen_graph(n, p);
+        if (ifname)
+            write_matrix(ifname,  n, l);
+        // Generate l_{ij}^0 from adjacency matrix representation
+        infinitize(n, l);
+        for (int i = 0; i < n*n; i += n+1)
+            l[i] = 0;
+    } else {
+        l = calloc(n*n, sizeof(int));
+    }
 
     // Time the shortest paths code
     double t0 = MPI_WTime();
-    shortest_paths(n, l, argc, argv);
+    shortest_paths(n, l, size, rank);
     double t1 = MPI_WTime();
 
-    printf("n:     %d\n", n);
-    printf("p:     %g\n", p);
-    printf("Time:  %g\n", t1-t0);
-    printf("Check: %X\n", fletcher16(l, n*n));
+    if (rank == 0) {
+        printf("n:     %d\n", n);
+        printf("p:     %g\n", p);
+        printf("Time:  %g\n", t1-t0);
+        printf("Check: %X\n", fletcher16(l, n*n));
 
-    // Generate output file
-    if (ofname)
-        write_matrix(ofname, n, l);
+        // Generate output file
+        if (ofname)
+            write_matrix(ofname, n, l);
+    }
 
     // Clean up
     free(l);
+    MPI_Finalize();
     return 0;
 }
