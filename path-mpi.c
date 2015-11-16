@@ -124,9 +124,10 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
             displacements[i+1] = displacements[i] + intervals[i];
         }
         intervals[size-1] = numRows;
-        MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(displacements, size, MPI_INT, 0, MPI_COMM_WORLD);
     }
+
+    MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(displacements, size, MPI_INT, 0, MPI_COMM_WORLD);
 
     int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
     memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
