@@ -132,11 +132,12 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
     int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
     memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
         
-    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[n], intervals[rank], n); 
+    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[rank], intervals[rank], n); 
 
     for (int done = 0; !done; ) {
         int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
         MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
+        print("do we all see this: %d", fletcher16(l, n*n));
         MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
 
@@ -281,6 +282,8 @@ int main(int argc, char** argv)
         // Generate output file
         if (ofname)
             write_matrix(ofname, n, l);
+    } else {
+        printf("Check: %X\n", fletcher16(l, n*n));
     }
 
     // Clean up
