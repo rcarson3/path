@@ -111,9 +111,6 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
     int* restrict displacements = (int*) calloc(size, sizeof(int));
     int numRows = n/size;
     int extraRows = n%size;
-
-    int* restrict lnew = (int*) calloc(interval, sizeof(int));
-    memcpy(lnew, l + start, interval * sizeof(int));
     
     // divide up the work amonst all processes
     if (rank==0) {
@@ -124,7 +121,6 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
                 intervals[i] = (numRows+1)*n;
             else
                 intervals[i] = numRows*n;
-            if (i < )
             displacements[i+1] = displacements[i] + intervals[i];
         }
         intervals[size-1] = numRows;
