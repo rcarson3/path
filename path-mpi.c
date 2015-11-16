@@ -203,6 +203,9 @@ void shortest_paths(int n, int* restrict l, int size, int rank)
 
     for (int done = 0; !done; ) {
         int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
+        printf("[%d]done? ---> %d\n", rank, doneLocal);
+        if (rank ==0)
+            printf("\n\n");
         MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
         MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
