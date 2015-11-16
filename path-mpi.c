@@ -46,18 +46,16 @@ int square(int n,               // Number of nodes
            int* restrict lnew)  // Partial distance at step s+1
 {
     int done = 1;
-    for (int j = 0; j < numRows; ++j) {
-        for (int i = 0; i < n; ++i) {
-            int lij = lnew[j*n+i];
-            for (int k = 0; k < n; ++k) {
+    for (int k = 0; k < n; ++k) {
+        for (int j = 0; j < numrows; ++j) {
+            int lkj = l[j*n + start + k];
+            for (int i = 0; i < n; ++i) {
                 int lik = l[k*n + i];
-                int lkj = l[j*n + start + k];
-                if (lik + lkj < lij) {
-                    lij = lik+lkj;
+                if (lik + lkj < lnew[j*n+i]) {
+                    lnew[j*n+i] = lik+lkj;
                     done = 0;
                 }
             }
-            lnew[j*n+i] = lij;
         }
     }
     return done;
