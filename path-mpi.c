@@ -107,24 +107,39 @@ static inline void deinfinitize(int n, int* l)
 
 void shortest_paths(int n, int* restrict l, int size, int rank)
 {
+    int* restrict intervals = (int*) calloc(size, sizeof(int));
+    int* restrict displacements = (int*) calloc(size, sizeof(int));
     int numRows = n/size;
-    int interval = numRows * n;
-    int start = rank * interval;
-
-    if (rank==0)
-        printf("== MPI with %d processes\n", size);
+    int extraRows = n%size;
 
     int* restrict lnew = (int*) calloc(interval, sizeof(int));
     memcpy(lnew, l + start, interval * sizeof(int));
-    if (n % size > 0) 
-        printf("uhoh, sizes don't divide evenly\n");
+    
+    // divide up the work amonst all processes
+    if (rank==0) {
+        printf("== MPI with %d processes\n", size);
+        displacements[0] = 0;
+        for (int i = 0; i < size-1; i++) {
+            if (rank < extraRows)
+                intervals[i] = (numRows+1)*n;
+            else
+                intervals[i] = numRows*n;
+            if (i < )
+            displacements[i+1] = displacements[i] + intervals[i];
+        }
+        intervals[size-1] = numRows;
+        MPI_Bcast(intervals, size, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(displacements, size, MPI_INT, 0, MPI_COMM_WORLD);
+    }
 
-    if (rank == 0)
-        printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, start, interval, n); 
+    int* restrict lnew = (int*) calloc(intervals[rank], sizeof(int));
+    memcpy(lnew, l + displacements[rank], intervals[rank] * sizeof(int));
+        
+    printf("rank=%d, start=%d, interval=%d, n=%d\n", rank, displacements[n], intervals[rank], n); 
 
     for (int done = 0; !done; ) {
-        int doneLocal = square(n, start, numRows, l, lnew);
-        MPI_Allgather(lnew, interval, MPI_INT, l, interval, MPI_INT, MPI_COMM_WORLD);
+        int doneLocal = square(n, displacements[rank], intervals[rank]/n, l, lnew);
+        MPI_Allgatherv(lnew, intervals[rank], MPI_INT, l, intervals, displacements, MPI_INT, MPI_COMM_WORLD);
         MPI_Allreduce(&doneLocal, &done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD); 
     }
 
